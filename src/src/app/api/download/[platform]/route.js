@@ -32,17 +32,31 @@ export async function GET(request, context) {
 
     const visitor = visitorFromRequest(request, release.current_release_key);
 
-    // IP hash is stored only for diagnostics. IP/network fingerprints are not unique keys.
-    await db`
-      INSERT INTO portal.download_events
-        (platform_key, release_key, version_name, version_code, sha256,
-         visitor_hash, client_device_hash, ip_hash, network_fingerprint_hash, user_agent)
-      VALUES
-        (${platform}, ${release.current_release_key}, ${release.version_name},
-         ${release.version_code}, ${release.sha256}, ${visitor.hash},
-         ${visitor.clientDeviceHash}, ${visitor.ipHash}, NULL, ${visitor.userAgent})
-      ON CONFLICT DO NOTHING
+    // Existing pre-migration events used an unscoped visitor hash. Recognize
+    // those only for the currently published release so the migration does not
+    // count returning devices twice; a later release has a different release_key.
+    const [legacyExisting] = await db`
+      SELECT id
+      FROM portal.download_events
+      WHERE platform_key = ${platform}
+        AND release_key = ${release.current_release_key}
+        AND visitor_hash = ${visitor.legacyHash}
+      LIMIT 1
     `;
+
+    if (!legacyExisting) {
+      // IP hash is stored only for diagnostics. IP/network fingerprints are not unique keys.
+      await db`
+        INSERT INTO portal.download_events
+          (platform_key, release_key, version_name, version_code, sha256,
+           visitor_hash, client_device_hash, ip_hash, network_fingerprint_hash, user_agent)
+        VALUES
+          (${platform}, ${release.current_release_key}, ${release.version_name},
+           ${release.version_code}, ${release.sha256}, ${visitor.hash},
+           ${visitor.clientDeviceHash}, ${visitor.ipHash}, NULL, ${visitor.userAgent})
+        ON CONFLICT DO NOTHING
+      `;
+    }
 
     return attachCookie(NextResponse.redirect(target.toString(), 302), visitor.setCookie);
   } catch (error) {
