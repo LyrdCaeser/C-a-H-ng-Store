@@ -29,6 +29,7 @@ function ReleaseCard({ release }) {
         <span>Phiên bản: <b>{release.version_name || "Chưa công bố"}</b></span>
         <span>{release.file_size || info.hint}</span>
       </div>
+      <div className="vn-download-count"><span aria-hidden="true">⇩</span><b>{Number(release.download_count || 0).toLocaleString("vi-VN")} lượt tải</b><small>Riêng nền tảng này</small></div>
       {release.requirements ? <p className="vn-small">Yêu cầu: {release.requirements}</p> : null}
       {release.release_notes ? <details className="vn-notes"><summary>Ghi chú phiên bản</summary><p>{release.release_notes}</p></details> : null}
       {release.available ? <a className="vn-download" href={"/api/download/" + release.platform_key}>Tải xuống</a> : <button className="vn-download disabled" disabled>Đang chuẩn bị</button>}
@@ -118,7 +119,7 @@ export default function HomePage() {
           <p>Tải phiên bản phù hợp với thiết bị của bạn. Mọi bản phát hành được quản lý tại cổng tải riêng của GXB3.</p>
         </section>
         <section className="vn-stats">
-          <Stat symbol="⇩" value={Number(stats.downloads || 0).toLocaleString("vi-VN")} label="Lượt tải" />
+          <Stat symbol="⇩" value={Number(stats.downloads || 0).toLocaleString("vi-VN")} label="Tổng lượt tải" />
           <Stat symbol="★" value={Number(stats.rating_average || 0).toFixed(1)} label="Điểm đánh giá trung bình" />
           <Stat symbol="✦" value={Number(stats.review_count || 0).toLocaleString("vi-VN")} label="Lượt đánh giá" />
           <Stat symbol="☷" value={Number(stats.comment_count || 0).toLocaleString("vi-VN")} label="Bình luận" />
