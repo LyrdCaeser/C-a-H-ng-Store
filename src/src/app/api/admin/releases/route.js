@@ -6,10 +6,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const platforms = {
-  apk: { group: "CH PLAY", title: "Android APK" },
-  exe: { group: "CH PLAY", title: "Windows EXE" },
-  ios: { group: "APP STORE", title: "Ứng dụng iOS" },
-  mobileconfig: { group: "APP STORE", title: "MobileConfig" },
+  apk: { group: "playstore", title: "Android APK" },
+  exe: { group: "playstore", title: "Windows EXE" },
+  ios: { group: "appstore", title: "Ứng dụng iOS" },
+  mobileconfig: { group: "appstore", title: "MobileConfig" },
 };
 
 function authorized(request) {
