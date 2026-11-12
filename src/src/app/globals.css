@@ -39,6 +39,7 @@ a{color:inherit}
 .vn-card>p{color:#adb6c5;margin:0;font-size:13px;line-height:1.65}
 .vn-meta{color:#aeb6c2;border-top:1px solid #d9b87421;justify-content:space-between;gap:12px;margin-top:17px;padding-top:14px;font-size:11px;display:flex}
 .vn-meta b{color:#e5d2aa}
+.vn-download-count{display:flex;align-items:center;gap:8px;margin-top:13px;padding:10px 12px;background:#d9b8740d;border:1px solid #d9b8742b;border-radius:10px;color:#d8ad63;font-size:12px}.vn-download-count>span{font-size:16px}.vn-download-count b{color:#f0dfbb;font-variant-numeric:tabular-nums}.vn-download-count small{color:#929dad;margin-left:auto;font-size:10px}
 .vn-card .vn-small{margin-top:12px!important;font-size:11px!important}
 .vn-notes{color:#d4bd8c;margin-top:10px;font-size:12px}
 .vn-notes p{color:#adb6c5;white-space:pre-wrap;line-height:1.6}
