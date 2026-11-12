@@ -14,7 +14,7 @@ const platforms = {
 
 function authorized(request) {
   const expected = process.env.PORTAL_ADMIN_TOKEN || "";
-  const provided = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
+  const provided = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
   if (!expected || !provided) return false;
   const a = Buffer.from(expected);
   const b = Buffer.from(provided);
