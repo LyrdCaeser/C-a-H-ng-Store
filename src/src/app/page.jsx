@@ -19,7 +19,17 @@ function prepareDownloadIdentity() {
     const key = "gxb3_download_device_id";
     const entry = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("gxb3_portal_cid="));
     let id = localStorage.getItem(key) || (entry ? entry.slice("gxb3_portal_cid=".length) : "");
-    if (!id) id = window.crypto?.randomUUID?.() || ("gxb3-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+    if (!id) {
+      if (window.crypto?.randomUUID) {
+        id = window.crypto.randomUUID();
+      } else {
+        const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 15) | 64;
+        bytes[8] = (bytes[8] & 63) | 128;
+        const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+        id = hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-" + hex.slice(12, 16) + "-" + hex.slice(16, 20) + "-" + hex.slice(20);
+      }
+    }
     localStorage.setItem(key, id);
     document.cookie = "gxb3_portal_cid=" + id + "; Path=/; Max-Age=31536000; SameSite=Lax; Secure";
   } catch {
