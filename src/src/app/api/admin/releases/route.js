@@ -36,7 +36,33 @@ export async function PUT(request) {
     const platform = platforms[key];
     if (!platform) return NextResponse.json({ error: "Nền tảng không hợp lệ." }, { status: 400 });
 
-    const rawUrl = String(body.downloadUrl || "").trim();
+    const [currentRelease] = await db`
+      SELECT current_release_key, version_name, version_code, sha256,
+             file_size, requirements, release_notes, download_url
+      FROM portal.platform_releases
+      WHERE platform_key = ${key}
+      LIMIT 1
+    `;
+
+    // Empty form fields mean "keep the currently published value", not "erase it".
+    const versionName = String(body.versionName || currentRelease?.version_name || "").trim().slice(0, 40) || null;
+    const versionCode = String(body.versionCode || currentRelease?.version_code || "").trim().slice(0, 40) || null;
+    const inputSha256 = String(body.sha256 || "").trim().toLowerCase() || null;
+    if (inputSha256 && !/^[a-f0-9]{64}$/.test(inputSha256)) {
+      return NextResponse.json({ error: "SHA-256 phải gồm đúng 64 ký tự thập lục phân." }, { status: 400 });
+    }
+
+    const sameVersionLabels =
+      (currentRelease?.version_name || "").trim().toLowerCase() === (versionName || "").trim().toLowerCase() &&
+      (currentRelease?.version_code || "").trim().toLowerCase() === (versionCode || "").trim().toLowerCase();
+    // If the admin doesn't supply a new hash while editing the same release,
+    // carry forward the published SHA instead of accidentally creating a new release.
+    const sha256 = inputSha256 || (sameVersionLabels ? currentRelease?.sha256 || null : null);
+    if (!sha256 && !versionName && !versionCode) {
+      return NextResponse.json({ error: "Cần có SHA-256 hoặc tên/mã phiên bản để tạo mã phát hành." }, { status: 400 });
+    }
+
+    const rawUrl = String(body.downloadUrl || currentRelease?.download_url || "").trim();
     let safeUrl = null;
     if (rawUrl) {
       try { safeUrl = new URL(rawUrl); }
@@ -46,31 +72,12 @@ export async function PUT(request) {
       }
     }
 
-    const versionName = String(body.versionName || "").trim().slice(0, 40) || null;
-    const versionCode = String(body.versionCode || "").trim().slice(0, 40) || null;
-    const sha256 = String(body.sha256 || "").trim().toLowerCase() || null;
-    if (sha256 && !/^[a-f0-9]{64}$/.test(sha256)) {
-      return NextResponse.json({ error: "SHA-256 phải gồm đúng 64 ký tự thập lục phân." }, { status: 400 });
-    }
-    if (!sha256 && !versionName && !versionCode) {
-      return NextResponse.json({ error: "Cần có SHA-256 hoặc tên/mã phiên bản để tạo mã phát hành." }, { status: 400 });
-    }
-
-    const fileSize = String(body.fileSize || "").trim().slice(0, 40) || null;
-    const requirements = String(body.requirements || "").trim().slice(0, 1000) || null;
-    const releaseNotes = String(body.releaseNotes || "").trim().slice(0, 5000) || null;
+    const fileSize = String(body.fileSize || currentRelease?.file_size || "").trim().slice(0, 40) || null;
+    const requirements = String(body.requirements || currentRelease?.requirements || "").trim().slice(0, 1000) || null;
+    const releaseNotes = String(body.releaseNotes || currentRelease?.release_notes || "").trim().slice(0, 5000) || null;
     const downloadUrl = safeUrl ? safeUrl.toString() : null;
     const published = Boolean(downloadUrl);
     let releaseKey = makeReleaseKey({ sha256, versionName, versionCode });
-    const [currentRelease] = await db`
-      SELECT current_release_key, version_name, version_code, sha256
-      FROM portal.platform_releases
-      WHERE platform_key = ${key}
-      LIMIT 1
-    `;
-    const sameVersionLabels =
-      (currentRelease?.version_name || "").trim().toLowerCase() === (versionName || "").trim().toLowerCase() &&
-      (currentRelease?.version_code || "").trim().toLowerCase() === (versionCode || "").trim().toLowerCase();
     // On first SHA capture for the already-published version, keep its existing key
     // so the historical count is not reset just because SHA tracking was introduced.
     if (currentRelease?.current_release_key && !currentRelease.sha256 && sha256 &&
