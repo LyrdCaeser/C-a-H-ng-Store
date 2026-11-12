@@ -14,35 +14,33 @@ export async function GET(request, context) {
   }
 
   try {
-    const visitor = visitorFromRequest(request);
     const [release] = await db`
-      SELECT download_url
+      SELECT download_url, current_release_key, version_name, version_code, sha256
       FROM portal.platform_releases
       WHERE platform_key = ${platform} AND published = true
       LIMIT 1
     `;
 
-    if (!release?.download_url) {
-      return attachCookie(
-        NextResponse.json({ error: "Bản tải chưa được phát hành." }, { status: 404 }),
-        visitor.setCookie
-      );
+    if (!release?.download_url || !release.current_release_key) {
+      return NextResponse.json({ error: "Bản tải chưa được phát hành đầy đủ thông tin phiên bản." }, { status: 404 });
     }
 
     const target = new URL(release.download_url);
-    if (target.protocol !== "https:") {
-      return NextResponse.json({ error: "Liên kết không hợp lệ." }, { status: 503 });
+    if (target.protocol !== "https:" || target.username || target.password) {
+      return NextResponse.json({ error: "Liên kết tải không hợp lệ." }, { status: 503 });
     }
 
-    const userAgent = (request.headers.get("user-agent") || "").slice(0, 300);
+    const visitor = visitorFromRequest(request, release.current_release_key);
 
-    // The unique indexes enforce lifetime deduplication even for concurrent requests.
-    // A repeat request still redirects to the file but does not add another count.
+    // IP hash is stored only for diagnostics. IP/network fingerprints are not unique keys.
     await db`
       INSERT INTO portal.download_events
-        (platform_key, visitor_hash, ip_hash, network_fingerprint_hash, user_agent)
+        (platform_key, release_key, version_name, version_code, sha256,
+         visitor_hash, client_device_hash, ip_hash, network_fingerprint_hash, user_agent)
       VALUES
-        (${platform}, ${visitor.hash}, ${visitor.ipHash}, ${visitor.networkHash}, ${userAgent})
+        (${platform}, ${release.current_release_key}, ${release.version_name},
+         ${release.version_code}, ${release.sha256}, ${visitor.hash},
+         ${visitor.clientDeviceHash}, ${visitor.ipHash}, NULL, ${visitor.userAgent})
       ON CONFLICT DO NOTHING
     `;
 
