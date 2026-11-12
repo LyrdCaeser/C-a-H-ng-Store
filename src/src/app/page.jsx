@@ -14,6 +14,19 @@ const groups = [
 ];
 const initialData = { releases: [], stats: {}, comments: [] };
 
+function prepareDownloadIdentity() {
+  try {
+    const key = "gxb3_download_device_id";
+    const entry = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("gxb3_portal_cid="));
+    let id = localStorage.getItem(key) || (entry ? entry.slice("gxb3_portal_cid=".length) : "");
+    if (!id) id = window.crypto?.randomUUID?.() || ("gxb3-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+    localStorage.setItem(key, id);
+    document.cookie = "gxb3_portal_cid=" + id + "; Path=/; Max-Age=31536000; SameSite=Lax; Secure";
+  } catch {
+    // The server's HttpOnly visitor cookie remains the fallback identity.
+  }
+}
+
 function ReleaseCard({ release }) {
   const info = platformInfo[release.platform_key];
   if (!info) return null;
@@ -29,10 +42,10 @@ function ReleaseCard({ release }) {
         <span>Phiên bản: <b>{release.version_name || "Chưa công bố"}</b></span>
         <span>{release.file_size || info.hint}</span>
       </div>
-      <div className="vn-download-count"><span aria-hidden="true">⇩</span><b>{Number(release.download_count || 0).toLocaleString("vi-VN")} lượt tải</b><small>Riêng nền tảng này</small></div>
+      <div className="vn-download-count"><span aria-hidden="true">⇩</span><b>{Number(release.download_count || 0).toLocaleString("vi-VN")} lượt tải</b><small>Riêng phiên bản đang phát hành</small></div>
       {release.requirements ? <p className="vn-small">Yêu cầu: {release.requirements}</p> : null}
       {release.release_notes ? <details className="vn-notes"><summary>Ghi chú phiên bản</summary><p>{release.release_notes}</p></details> : null}
-      {release.available ? <a className="vn-download" href={"/api/download/" + release.platform_key}>Tải xuống</a> : <button className="vn-download disabled" disabled>Đang chuẩn bị</button>}
+      {release.available ? <a className="vn-download" href={"/api/download/" + release.platform_key} onClick={prepareDownloadIdentity}>Tải xuống</a> : <button className="vn-download disabled" disabled>Đang chuẩn bị</button>}
     </article>
   );
 }
