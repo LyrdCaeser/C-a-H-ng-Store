@@ -61,9 +61,24 @@ export async function PUT(request) {
     const releaseNotes = String(body.releaseNotes || "").trim().slice(0, 5000) || null;
     const downloadUrl = safeUrl ? safeUrl.toString() : null;
     const published = Boolean(downloadUrl);
-    const releaseKey = makeReleaseKey({ sha256, versionName, versionCode });
+    let releaseKey = makeReleaseKey({ sha256, versionName, versionCode });
+    const [currentRelease] = await db`
+      SELECT current_release_key, version_name, version_code, sha256
+      FROM portal.platform_releases
+      WHERE platform_key = ${key}
+      LIMIT 1
+    `;
+    const sameVersionLabels =
+      (currentRelease?.version_name || "").trim().toLowerCase() === (versionName || "").trim().toLowerCase() &&
+      (currentRelease?.version_code || "").trim().toLowerCase() === (versionCode || "").trim().toLowerCase();
+    // On first SHA capture for the already-published version, keep its existing key
+    // so the historical count is not reset just because SHA tracking was introduced.
+    if (currentRelease?.current_release_key && !currentRelease.sha256 && sha256 &&
+        sameVersionLabels && (versionName || versionCode)) {
+      releaseKey = currentRelease.current_release_key;
+    }
 
-    // Preserve every release record. A different SHA-256 or version label creates a new key.
+    // New SHA or version label creates a new release key; old rows stay in history.
     await db`
       INSERT INTO portal.release_versions
         (platform_key, release_key, version_name, version_code, sha256, file_size, download_url, created_at, updated_at)
