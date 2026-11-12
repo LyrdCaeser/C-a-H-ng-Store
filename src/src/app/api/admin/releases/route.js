@@ -14,11 +14,18 @@ const platforms = {
 
 function authorized(request) {
   const expected = process.env.PORTAL_ADMIN_TOKEN || "";
-  const provided = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const provided = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "").trim();
   if (!expected || !provided) return false;
   const a = Buffer.from(expected);
   const b = Buffer.from(provided);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function makeReleaseKey({ sha256, versionName, versionCode }) {
+  // Same canonical format was used to backfill the currently published versions.
+  return "v1|sha256:" + (sha256 || "") +
+    "|name:" + (versionName || "").trim().toLowerCase() +
+    "|code:" + (versionCode || "").trim().toLowerCase();
 }
 
 export async function PUT(request) {
@@ -41,20 +48,47 @@ export async function PUT(request) {
 
     const versionName = String(body.versionName || "").trim().slice(0, 40) || null;
     const versionCode = String(body.versionCode || "").trim().slice(0, 40) || null;
+    const sha256 = String(body.sha256 || "").trim().toLowerCase() || null;
+    if (sha256 && !/^[a-f0-9]{64}$/.test(sha256)) {
+      return NextResponse.json({ error: "SHA-256 phải gồm đúng 64 ký tự thập lục phân." }, { status: 400 });
+    }
+    if (!sha256 && !versionName && !versionCode) {
+      return NextResponse.json({ error: "Cần có SHA-256 hoặc tên/mã phiên bản để tạo mã phát hành." }, { status: 400 });
+    }
+
     const fileSize = String(body.fileSize || "").trim().slice(0, 40) || null;
     const requirements = String(body.requirements || "").trim().slice(0, 1000) || null;
     const releaseNotes = String(body.releaseNotes || "").trim().slice(0, 5000) || null;
     const downloadUrl = safeUrl ? safeUrl.toString() : null;
     const published = Boolean(downloadUrl);
+    const releaseKey = makeReleaseKey({ sha256, versionName, versionCode });
+
+    // Preserve every release record. A different SHA-256 or version label creates a new key.
+    await db`
+      INSERT INTO portal.release_versions
+        (platform_key, release_key, version_name, version_code, sha256, file_size, download_url, created_at, updated_at)
+      VALUES
+        (${key}, ${releaseKey}, ${versionName}, ${versionCode}, ${sha256},
+         ${fileSize}, ${downloadUrl}, now(), now())
+      ON CONFLICT (platform_key, release_key) DO UPDATE SET
+        version_name = EXCLUDED.version_name,
+        version_code = EXCLUDED.version_code,
+        sha256 = EXCLUDED.sha256,
+        file_size = EXCLUDED.file_size,
+        download_url = EXCLUDED.download_url,
+        updated_at = now()
+    `;
 
     await db`
       INSERT INTO portal.platform_releases (
         platform_key, platform_group, title, version_name, version_code,
-        file_size, requirements, release_notes, download_url, published, updated_at
+        file_size, requirements, release_notes, download_url, published,
+        current_release_key, sha256, updated_at
       )
       VALUES (
         ${key}, ${platform.group}, ${platform.title}, ${versionName}, ${versionCode},
-        ${fileSize}, ${requirements}, ${releaseNotes}, ${downloadUrl}, ${published}, now()
+        ${fileSize}, ${requirements}, ${releaseNotes}, ${downloadUrl}, ${published},
+        ${releaseKey}, ${sha256}, now()
       )
       ON CONFLICT (platform_key) DO UPDATE SET
         platform_group = EXCLUDED.platform_group,
@@ -66,9 +100,12 @@ export async function PUT(request) {
         release_notes = EXCLUDED.release_notes,
         download_url = EXCLUDED.download_url,
         published = EXCLUDED.published,
+        current_release_key = EXCLUDED.current_release_key,
+        sha256 = EXCLUDED.sha256,
         updated_at = now()
     `;
-    return NextResponse.json({ ok: true });
+
+    return NextResponse.json({ ok: true, releaseKey });
   } catch (error) {
     console.error("release save failed", error);
     return NextResponse.json({ error: "Không thể lưu bản phát hành." }, { status: 500 });
