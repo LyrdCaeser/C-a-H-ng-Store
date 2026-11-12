@@ -244,7 +244,7 @@ export default function AdminPage() {
             {selectedFile ? <p style={{ color: "#d9c8a8", fontSize: 12 }}>{selectedFile.name} · {formatBytes(selectedFile.size)}</p> : null}
             {hashing ? <p style={{ color: "#d9c8a8", fontSize: 12 }}>Đang tính SHA-256: {hashProgress}%</p> : null}
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-              <button type="button" disabled={uploading || !selectedFile} onClick={uploadFile} style={{ ...primaryButton, opacity: uploading || !selectedFile ? 0.55 : 1 }}>{uploading ? "Đang tải tệp…" : "Tải tệp từ thiết bị"}</button>
+              <button type="button" disabled={hashing || uploading || !selectedFile} onClick={uploadFile} style={{ ...primaryButton, opacity: hashing || uploading || !selectedFile ? 0.55 : 1 }}>{hashing ? "Đang tính SHA-256…" : uploading ? "Đang tải tệp…" : "Tải tệp từ thiết bị"}</button>
               {uploading ? <span style={{ color: "#d9c8a8", fontSize: 12 }}>{progress}%</span> : null}
             </div>
             {uploading ? <div style={{ height: 5, borderRadius: 99, background: "#293447", marginTop: 12, overflow: "hidden" }}><div style={{ width: progress + "%", height: "100%", background: "#d9b56f" }} /></div> : null}
