@@ -25,6 +25,7 @@ export function visitorFromRequest(request, releaseKey = "global") {
 
   const userAgent = (request.headers.get("user-agent") || "unknown").slice(0, 300);
   return {
+    legacyHash: createHmac("sha256", secret).update("device:" + serverId).digest("hex"),
     hash: releaseKey === "global" ? createHmac("sha256", secret).update("device:" + serverId).digest("hex") : scopedHash(secret, "server-device", serverId, releaseKey),
     clientDeviceHash: clientId ? scopedHash(secret, "client-device", clientId, releaseKey) : null,
     ipHash,
