@@ -1,35 +1,37 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 
-export function visitorFromRequest(request) {
-  const cookie = request.headers.get("cookie") || "";
-  const match = cookie.match(/(?:^|;\s*)gxb3_portal_vid=([a-f0-9-]{36})(?:;|$)/i);
-  const id = match?.[1] || randomUUID();
+function readCookie(cookieHeader, name) {
+  const entry = cookieHeader.split(";").map((part) => part.trim()).find((part) => part.toLowerCase().startsWith(name.toLowerCase() + "="));
+  const value = entry ? entry.slice(name.length + 1) : "";
+  return /^[a-f0-9-]{36}$/i.test(value) ? value : null;
+}
+
+function scopedHash(secret, kind, id, releaseKey) {
+  return createHmac("sha256", secret).update(kind + ":" + id + ":release:" + releaseKey).digest("hex");
+}
+
+export function visitorFromRequest(request, releaseKey = "global") {
+  const cookieHeader = request.headers.get("cookie") || "";
+  const serverId = readCookie(cookieHeader, "gxb3_portal_vid") || randomUUID();
+  const clientId = readCookie(cookieHeader, "gxb3_portal_cid");
   const secret = process.env.VISITOR_HASH_SECRET;
   if (!secret) throw new Error("VISITOR_HASH_SECRET is missing");
 
-  const ipCandidate =
-    request.headers.get("x-real-ip") ||
-    request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ||
-    "";
+  // Hash IP for diagnostics only. Never use shared Wi-Fi/IP as a deduplication key.
+  const ipCandidate = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
   const ip = ipCandidate.trim();
-  const ipHash = isIP(ip)
-    ? createHmac("sha256", secret).update(`ip:${ip}`).digest("hex")
-    : null;
+  const ipHash = isIP(ip) ? createHmac("sha256", secret).update("ip:" + ip).digest("hex") : null;
 
   const userAgent = (request.headers.get("user-agent") || "unknown").slice(0, 300);
-  const language = (request.headers.get("accept-language") || "unknown").slice(0, 120);
-  const networkHash = ipHash
-    ? createHmac("sha256", secret)
-        .update(`network:${ipHash}:${userAgent}:${language}`)
-        .digest("hex")
-    : null;
-
   return {
-    hash: createHmac("sha256", secret).update(`device:${id}`).digest("hex"),
+    hash: scopedHash(secret, "server-device", serverId, releaseKey),
+    clientDeviceHash: clientId ? scopedHash(secret, "client-device", clientId, releaseKey) : null,
     ipHash,
-    networkHash,
-    setCookie: match ? null : `gxb3_portal_vid=${id}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`
+    userAgent,
+    setCookie: readCookie(cookieHeader, "gxb3_portal_vid")
+      ? null
+      : "gxb3_portal_vid=" + serverId + "; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax"
   };
 }
 
