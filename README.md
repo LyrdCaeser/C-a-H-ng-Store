@@ -34,4 +34,4 @@ npm start
 
 ## Ghi chú khôi phục source
 
-Các tệp cấu hình, thư viện cơ sở dữ liệu, visitor và các API công khai được phục hồi nguyên vẹn từ Deployment Production. Bốn tệp dài bị giới hạn khi đọc từ Vercel Deployment API (trang chủ, trang quản trị, API lưu phiên bản và API upload) được tái dựng dựa trên bundle Production và phần source còn đọc được. Không thay đổi database hoặc dữ liệu Production trong quá trình khôi phục.
+Các tệp cấu hình, thư viện database, visitor và API công khai được phục hồi nguyên vẹn từ Deployment Production. Bốn tệp dài bị giới hạn khi đọc từ Vercel Deployment API (trang chủ, trang quản trị, API lưu phiên bản và API upload) được tái dựng dựa trên bundle Production và phần source còn đọc được. Tệp lưu phiên bản đã sửa biểu thức xử lý tiền tố Bearer bị escape sai. Không thay đổi database hoặc dữ liệu Production trong quá trình khôi phục.
