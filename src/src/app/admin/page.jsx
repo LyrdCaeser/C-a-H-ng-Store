@@ -70,7 +70,7 @@ function AnalyticsPanel({ adminToken }) {
     <section style={{ ...sectionStyle, marginTop: 22 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ margin: "0 0 6px", fontSize: 19 }}>5. Thống kê tổng lượt tải</h2>
+          <h2 style={{ margin: "0 0 6px", fontSize: 19 }}>5. Thống kê tải và đánh giá</h2>
           <p style={{ margin: 0, color: "#aab5c5", fontSize: 12 }}>Lịch sử không bị reset khi phát hành phiên bản mới.</p>
         </div>
         <button type="button" onClick={loadAnalytics} disabled={loading} style={{ ...primaryButton, opacity: loading ? 0.6 : 1 }}>
@@ -83,6 +83,11 @@ function AnalyticsPanel({ adminToken }) {
           <div style={{ marginTop: 18, padding: 18, borderRadius: 12, background: "#0b1220", border: "1px solid rgba(219,185,119,.18)" }}>
             <div style={{ color: "#aab5c5", fontSize: 12 }}>TỔNG LƯỢT TẢI TÍCH LŨY — TẤT CẢ PHIÊN BẢN</div>
             <div style={{ color: "#f2dfb5", fontSize: 32, fontWeight: 800, fontVariantNumeric: "tabular-nums", marginTop: 6 }}>{Number(data.totalDownloads || 0).toLocaleString("vi-VN")}</div>
+          </div>
+          <div style={{ marginTop: 12, padding: 18, borderRadius: 12, background: "#0b1220", border: "1px solid rgba(219,185,119,.18)" }}>
+            <div style={{ color: "#aab5c5", fontSize: 12 }}>TỔNG ĐÁNH GIÁ TÍCH LŨY — MỌI NỀN TẢNG VÀ PHIÊN BẢN</div>
+            <div style={{ color: "#f2dfb5", fontSize: 30, fontWeight: 800, fontVariantNumeric: "tabular-nums", marginTop: 6 }}>{Number(data.totalReviews || 0).toLocaleString("vi-VN")}</div>
+            {Number(data.legacyReviews || 0) > 0 ? <p style={{ color: "#98a6ba", fontSize: 11, margin: "8px 0 0" }}>{data.legacyReviews} đánh giá cũ thuộc mục chung, chưa xác định nền tảng. Chúng vẫn được giữ trong lịch sử nhưng không tính vào điểm riêng của bốn nền tảng.</p> : null}
           </div>
           <div style={{ marginTop: 22 }}>
             <h3 style={{ color: "#e5d4b1", fontSize: 15 }}>Biểu đồ xu hướng lượt tải · 30 ngày gần nhất</h3>
@@ -106,6 +111,8 @@ function AnalyticsPanel({ adminToken }) {
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #344154" }}>Nền tảng</th>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #344154" }}>Phiên bản</th>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #344154" }}>Lượt tải</th>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid #344154" }}>Đánh giá</th>
+                <th style={{ padding: "10px 8px", borderBottom: "1px solid #344154" }}>Điểm /5</th>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #344154" }}>SHA-256</th>
                 <th style={{ padding: "10px 8px", borderBottom: "1px solid #344154" }}>Ngày ghi nhận</th>
               </tr></thead>
@@ -115,6 +122,8 @@ function AnalyticsPanel({ adminToken }) {
                     <td style={{ padding: "11px 8px", borderBottom: "1px solid #253044", color: "#e4d4b5" }}>{item.platform_key}</td>
                     <td style={{ padding: "11px 8px", borderBottom: "1px solid #253044", color: "#e4d4b5" }}>{item.version_name || "Chưa đặt tên"} {item.version_code ? "(" + item.version_code + ")" : ""}</td>
                     <td style={{ padding: "11px 8px", borderBottom: "1px solid #253044", color: "#f0d39a", fontWeight: 800 }}>{Number(item.downloads || 0).toLocaleString("vi-VN")}</td>
+                    <td style={{ padding: "11px 8px", borderBottom: "1px solid #253044", color: "#f0d39a" }}>{Number(item.review_count || 0).toLocaleString("vi-VN")}</td>
+                    <td style={{ padding: "11px 8px", borderBottom: "1px solid #253044", color: "#e9c376" }}>{Number(item.review_count || 0) ? "★ " + Number(item.rating_average || 0).toFixed(1) : "—"}</td>
                     <td style={{ padding: "11px 8px", borderBottom: "1px solid #253044", color: "#99a4b5", fontFamily: "monospace" }}>{item.sha256 ? item.sha256.slice(0, 16) + "…" : "Chưa có"}</td>
                     <td style={{ padding: "11px 8px", borderBottom: "1px solid #253044", color: "#99a4b5" }}>{new Date(item.created_at).toLocaleDateString("vi-VN")}</td>
                   </tr>
@@ -122,6 +131,18 @@ function AnalyticsPanel({ adminToken }) {
               </tbody>
             </table>
             {!data.versions?.length ? <p style={{ color: "#99a4b5", fontSize: 12 }}>Chưa có lịch sử phiên bản.</p> : null}
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <h3 style={{ color: "#e5d4b1", fontSize: 15 }}>Lý do đánh giá theo nền tảng và phiên bản</h3>
+            {(data.reviewReasons || []).length ? (data.reviewReasons || []).map((item, index) => (
+              <article key={item.platform_key + ":" + item.updated_at + ":" + index} style={{ padding: "12px 0", borderBottom: "1px solid #283449" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <b style={{ color: "#f0d19b", fontSize: 12 }}>{item.platform_key.toUpperCase()} · {item.version_name || "Chưa đặt tên"} · {"★".repeat(item.rating)}{"☆".repeat(5 - item.rating)}</b>
+                  <span style={{ color: "#98a6ba", fontSize: 11 }}>{new Date(item.updated_at).toLocaleDateString("vi-VN")}</span>
+                </div>
+                <p style={{ fontSize: 12, color: "#b9c2d1", margin: "7px 0 3px", overflowWrap: "anywhere" }}><b>{item.display_name || "Người chơi"}:</b> {item.reason}</p>
+              </article>
+            )) : <p style={{ color: "#98a6ba", fontSize: 12 }}>Chưa có lý do đánh giá theo nền tảng.</p>}
           </div>
         </>
       ) : null}
