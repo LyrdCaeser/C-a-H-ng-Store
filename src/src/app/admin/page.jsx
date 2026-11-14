@@ -131,6 +131,10 @@ function AnalyticsPanel({ adminToken }) {
 
 export default function AdminPage() {
   const [adminToken, setAdminToken] = useState("");
+  const [heroFile, setHeroFile] = useState(null);
+  const [iconFile, setIconFile] = useState(null);
+  const [artworkBusy, setArtworkBusy] = useState(false);
+  const [artworkProgress, setArtworkProgress] = useState(0);
   const [platformKey, setPlatformKey] = useState("apk");
   const [versionName, setVersionName] = useState("");
   const [versionCode, setVersionCode] = useState("");
@@ -151,6 +155,47 @@ export default function AdminPage() {
   const selectedPlatform = platforms.find((item) => item.key === platformKey) || platforms[0];
 
   function notify(value, type = "info") { setMessage(value); setMessageType(type); }
+
+  async function uploadArtwork(kind, file) {
+    if (!adminToken.trim()) return notify("Nhập mã quản trị trước khi cập nhật ảnh.", "error");
+    if (!file) return notify("Chọn ảnh PNG, JPG hoặc WebP từ thiết bị.", "error");
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || file.size > 12 * 1024 * 1024) {
+      return notify("Ảnh phải là PNG, JPG hoặc WebP, tối đa 12 MB.", "error");
+    }
+    setArtworkBusy(true);
+    setArtworkProgress(0);
+    try {
+      const check = await fetch("/api/admin/check", {
+        method: "POST", headers: { Authorization: "Bearer " + adminToken.trim() }, cache: "no-store"
+      });
+      const checked = await check.json().catch(() => ({}));
+      if (!check.ok) throw new Error(checked.error || "Mã quản trị không hợp lệ.");
+      const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+      const pathname = "goddess-battle-3/artwork/" + kind + "-" + Date.now() + "-" + filename;
+      notify("Đang tải ảnh lên kho Vercel Blob…");
+      const blob = await upload(pathname, file, {
+        access: "public",
+        handleUploadUrl: "/api/admin/upload",
+        clientPayload: JSON.stringify({ platformKey: "artwork", adminToken }),
+        onUploadProgress: (evt) => setArtworkProgress(Math.round(evt.percentage || 0))
+      });
+      const saved = await fetch("/api/admin/appearance", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + adminToken.trim(), "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, url: blob.url })
+      });
+      const result = await saved.json().catch(() => ({}));
+      if (!saved.ok) throw new Error(result.error || "Không thể lưu hình ảnh.");
+      notify(kind === "hero" ? "Đã thay hình nền web thành công." : "Đã đặt ảnh ứng dụng cho cả bốn nền tảng.", "success");
+    } catch (error) {
+      const message = String(error?.message || "");
+      notify(/Failed to retrieve the client token/i.test(message)
+        ? "Không cấp được token Vercel Blob. Kiểm tra mã quản trị và thử lại."
+        : message || "Không thể cập nhật hình ảnh.", "error");
+    } finally {
+      setArtworkBusy(false);
+    }
+  }
 
   async function uploadFile() {
     if (!adminToken.trim()) return notify("Vui lòng nhập mã quản trị trước khi tải tệp lên.", "error");
@@ -248,6 +293,23 @@ export default function AdminPage() {
             <label style={labelStyle} htmlFor="admin-token">Mã quản trị</label>
             <input id="admin-token" type="password" autoComplete="current-password" value={adminToken} onChange={(event) => setAdminToken(event.target.value)} placeholder="Nhập mã quản trị" style={fieldStyle} />
             <p style={{ color: "#8593a7", fontSize: 12, lineHeight: 1.6, marginBottom: 0 }}>Mã được gửi qua HTTPS và xác minh ở máy chủ trước khi cấp quyền tải tệp.</p>
+          </section>
+          <section style={sectionStyle}>
+            <h2 style={{ margin: "0 0 12px", fontSize: 18 }}>Hình nền và ảnh ứng dụng</h2>
+            <p style={{ color: "#aab5c5", fontSize: 13, lineHeight: 1.6 }}>Ảnh nền sẽ xuất hiện ở trang chủ. Ảnh ứng dụng sẽ được dùng chung cho cả Android APK, Windows EXE, iOS và MobileConfig.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px,1fr))", gap: 16 }}>
+              <div>
+                <label style={labelStyle} htmlFor="store-hero-file">1. Hình nền web</label>
+                <input id="store-hero-file" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setHeroFile(event.target.files?.[0] || null)} style={{ ...fieldStyle, padding: 9 }} />
+                <button type="button" onClick={() => uploadArtwork("hero", heroFile)} disabled={artworkBusy || !heroFile} style={{ ...primaryButton, marginTop: 10, opacity: artworkBusy || !heroFile ? 0.55 : 1 }}>Áp dụng hình nền</button>
+              </div>
+              <div>
+                <label style={labelStyle} htmlFor="store-icon-file">2. Ảnh ứng dụng (4 nền tảng)</label>
+                <input id="store-icon-file" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => setIconFile(event.target.files?.[0] || null)} style={{ ...fieldStyle, padding: 9 }} />
+                <button type="button" onClick={() => uploadArtwork("icon", iconFile)} disabled={artworkBusy || !iconFile} style={{ ...primaryButton, marginTop: 10, opacity: artworkBusy || !iconFile ? 0.55 : 1 }}>Áp dụng ảnh ứng dụng</button>
+              </div>
+            </div>
+            {artworkBusy ? <p style={{ color: "#d9c8a8", fontSize: 12 }}>Đang tải ảnh: {artworkProgress}%</p> : null}
           </section>
           <section style={sectionStyle}>
             <h2 style={{ margin: "0 0 16px", fontSize: 18 }}>2. Chọn nền tảng</h2>
