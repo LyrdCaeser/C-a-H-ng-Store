@@ -57,7 +57,17 @@ export async function POST(request) {
           allowedContentTypes: contentTypes,
           maximumSizeInBytes: 5 * 1024 * 1024 * 1024,
           addRandomSuffix: false,
+          tokenPayload: JSON.stringify({ platformKey }),
         };
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        // The Blob service calls this endpoint after a successful client upload.
+        // Do not publish a new release here: the admin saves the version separately.
+        const platformKey = JSON.parse(tokenPayload || "{}").platformKey;
+        if (!extensions[platformKey] || !blob.pathname?.startsWith("goddess-battle-3/" + platformKey + "/")) {
+          console.error("Blob upload completion did not match the authorized platform");
+          return;
+        }
       },
     });
     return NextResponse.json(result);
