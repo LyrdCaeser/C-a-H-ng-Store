@@ -37,13 +37,13 @@ function prepareDownloadIdentity() {
   }
 }
 
-function ReleaseCard({ release }) {
+function ReleaseCard({ release, appIconUrl }) {
   const info = platformInfo[release.platform_key];
   if (!info) return null;
   return (
     <article className="vn-card">
       <div className="vn-cardtop">
-        <div className={"vn-icon " + release.platform_key}>{info.symbol}</div>
+        <div className={"vn-icon " + release.platform_key}>{appIconUrl ? <img className="vn-app-art" src={appIconUrl} alt="Ảnh Goddess Battle 3" /> : info.symbol}</div>
         <span className={"vn-status " + (release.available ? "live" : "wait")}>{release.available ? "ĐÃ PHÁT HÀNH" : "CHƯA PHÁT HÀNH"}</span>
       </div>
       <h3>{info.name}</h3>
@@ -130,16 +130,18 @@ export default function HomePage() {
 
   const stats = data.stats || {};
   return (
-    <main className="vn-portal">
+    <main className="vn-portal" style={{ "--store-background-image": data.appearance?.hero_url ? `url("${data.appearance.hero_url}")` : "none" }}>
       <div className="vn-wrap">
         <header className="vn-header">
           <a href="/" className="vn-brand"><span className="vn-emblem">女</span><span><b>GODDESS BATTLE 3</b><small>CỔNG TẢI CHÍNH THỨC</small></span></a>
           <nav className="vn-nav"><a href="#ch-play">CH PLAY</a><a href="#app-store">APP STORE</a><a href="#cong-dong">Cộng đồng</a><a href="/admin">Quản trị</a></nav>
         </header>
         <section className="vn-hero">
+          <div className="vn-hero-copy">
           <div className="vn-eyebrow">GXB3 · NỮ THẦN CHIẾN ĐẤU 3</div>
           <h1>Khám phá thế giới<br />Nữ Thần Chiến Đấu 3</h1>
           <p>Tải phiên bản phù hợp với thiết bị của bạn. Mọi bản phát hành được quản lý tại cổng tải riêng của GXB3.</p>
+          </div>
         </section>
         <section className="vn-stats">
           <Stat symbol="⇩" value={Number(stats.downloads || 0).toLocaleString("vi-VN")} label="Tổng lượt tải" />
@@ -153,7 +155,7 @@ export default function HomePage() {
             <div className="vn-grid">
               {group.keys.map((key) => {
                 const release = (data.releases || []).find((item) => item.platform_key === key);
-                return release ? <ReleaseCard release={release} key={key} /> : null;
+                return release ? <ReleaseCard release={release} appIconUrl={data.appearance?.app_icon_url} key={key} /> : null;
               })}
             </div>
           </section>
