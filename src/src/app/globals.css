@@ -62,3 +62,68 @@ a{color:inherit}
 .vn-foot{color:#8993a3;text-align:center;border-top:1px solid #d9b87429;padding-top:22px;font-size:11px;line-height:1.8}
 .vn-foot a{color:#d4b477;text-decoration:none}
 @media (width<=720px){.vn-portal{padding:0 14px 35px}.vn-header{align-items:flex-start;height:auto;padding:17px 0}.vn-nav{justify-content:flex-end;gap:11px}.vn-nav a{font-size:10px}.vn-hero{padding:55px 0 28px}.vn-stats{grid-template-columns:repeat(2,1fr);margin-bottom:45px}.vn-stat{padding:13px}.vn-stat b{font-size:19px}.vn-grid,.vn-community{grid-template-columns:1fr}.vn-card{padding:19px}.vn-meta{flex-wrap:wrap}.vn-head h2{font-size:27px}}
+
+
+/* Goddess Battle 3 artwork: responsive dark fantasy store layout. */
+.vn-portal{
+  background-image:linear-gradient(180deg,#080c15f2,#080c15ed 60%,#080c15f5),var(--store-background-image,none);
+  background-position:center top;
+  background-repeat:no-repeat;
+  background-size:cover;
+}
+.vn-hero{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  border-radius:28px;
+  border:1px solid #d9b8743d;
+  padding:74px 55px 74px;
+  min-height:370px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  text-align:left;
+  background:radial-gradient(ellipse at 90% 22%,#50417486,transparent 52%),linear-gradient(125deg,#101b31,#141321);
+  box-shadow:0 26px 70px #00000055,inset 0 1px #fff1;
+}
+.vn-hero::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:0;
+  background-image:var(--store-background-image,none);
+  background-repeat:no-repeat;
+  background-position:right center;
+  background-size:auto 115%;
+  opacity:.94;
+  -webkit-mask-image:linear-gradient(90deg,transparent 31%,#000 76%);
+  mask-image:linear-gradient(90deg,transparent 31%,#000 76%);
+  pointer-events:none;
+}
+.vn-hero::after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:0;
+  background:linear-gradient(90deg,#0a1024cb 0%,#0a102471 48%,transparent 95%);
+  pointer-events:none;
+}
+.vn-hero-copy{position:relative;max-width:565px}
+.vn-hero h1{font-size:clamp(36px,5vw,63px);text-shadow:0 2px 16px #070b18}
+.vn-hero p{margin:0;max-width:510px;text-shadow:0 2px 12px #0b1023}
+.vn-card{position:relative;overflow:hidden;transition:transform .2s ease,border-color .2s ease;background:linear-gradient(150deg,#1c2940f5,#0c111bec)}
+.vn-card:hover{transform:translateY(-3px);border-color:#c9aa69a0}
+.vn-icon{width:84px;height:84px;border-radius:18px;background:linear-gradient(135deg,#1e3152,#0c101e);overflow:hidden;box-shadow:0 6px 20px #0005}
+.vn-app-art{display:block;width:100%;height:100%;object-fit:cover;object-position:center;border-radius:17px}
+.vn-download{transition:filter .15s ease,transform .15s ease}
+.vn-download:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.vn-cardtop{gap:12px}
+@media (max-width:720px){
+  .vn-hero{min-height:420px;padding:200px 22px 30px;border-radius:22px;align-items:flex-end;text-align:left}
+  .vn-hero::before{background-size:auto 83%;background-position:center -80px;opacity:.9;-webkit-mask-image:linear-gradient(180deg,#000 0%,#000 52%,transparent 88%);mask-image:linear-gradient(180deg,#000 0%,#000 52%,transparent 88%)}
+  .vn-hero::after{background:linear-gradient(180deg,#090d1a44,#090d1a78 45%,#090d1af5 82%)}
+  .vn-hero h1{font-size:35px}
+  .vn-hero p{font-size:13px;line-height:1.7}
+  .vn-icon{height:74px;width:74px}
+}
+@media (prefers-reduced-motion:reduce){.vn-card,.vn-download{transition:none}.vn-card:hover,.vn-download:hover{transform:none}}
