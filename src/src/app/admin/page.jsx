@@ -156,6 +156,20 @@ export default function AdminPage() {
     if (!adminToken.trim()) return notify("Vui lòng nhập mã quản trị trước khi tải tệp lên.", "error");
     if (!selectedFile) return notify("Vui lòng chọn tệp cần tải lên.", "error");
     if (!selectedPlatform.accept.split(",").some((ext) => selectedFile.name.toLowerCase().endsWith(ext))) return notify("Định dạng tệp không phù hợp với nền tảng đã chọn.", "error");
+    // Validate the admin credential before hashing large packages or requesting a Blob token.
+    try {
+      const check = await fetch("/api/admin/check", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + adminToken.trim() },
+        cache: "no-store"
+      });
+      const result = await check.json().catch(() => ({}));
+      if (!check.ok) {
+        return notify(result.error || "Không xác thực được mã quản trị.", "error");
+      }
+    } catch {
+      return notify("Không kết nối được cổng xác thực quản trị. Vui lòng thử lại.", "error");
+    }
     setHashing(true);
     setHashProgress(0);
     notify("Đang tính SHA-256 cho tệp…");
@@ -192,8 +206,14 @@ export default function AdminPage() {
       setFileSize(formatBytes(selectedFile.size));
       setSha256(fileSha256);
       notify("Tải tệp lên thành công. Địa chỉ tải đã được điền tự động; hãy lưu bản phát hành.", "success");
-    } catch (error) { notify(error?.message || "Không thể tải tệp lên. Vui lòng thử lại.", "error"); }
-    finally { setUploading(false); }
+    } catch (error) {
+      const detail = String(error?.message || "");
+      if (/Failed to retrieve the client token/i.test(detail)) {
+        notify("Không nhận được quyền tải tệp lên từ máy chủ. Hãy kiểm tra mã quản trị và cấu hình Vercel Blob.", "error");
+      } else {
+        notify(detail || "Không thể tải tệp lên. Vui lòng thử lại.", "error");
+      }
+    } finally { setUploading(false); }
   }
 
   async function saveRelease(event) {
