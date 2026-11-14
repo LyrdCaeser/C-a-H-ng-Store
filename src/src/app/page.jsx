@@ -12,7 +12,7 @@ const groups = [
   { id: "ch-play", title: "CH PLAY", sub: "Dành cho Android và máy tính Windows", keys: ["apk", "exe"] },
   { id: "app-store", title: "APP STORE", sub: "Dành cho thiết bị Apple và hồ sơ cấu hình", keys: ["ios", "mobileconfig"] },
 ];
-const initialData = { releases: [], stats: {}, comments: [] };
+const initialData = { releases: [], stats: {}, comments: [], reviews: [] };
 
 function prepareDownloadIdentity() {
   try {
@@ -37,7 +37,96 @@ function prepareDownloadIdentity() {
   }
 }
 
-function ReleaseCard({ release, appIconUrl }) {
+function PlatformReviews({ release, reviews = [], onSaved }) {
+  const [expanded, setExpanded] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [stars, setStars] = useState(5);
+  const [reason, setReason] = useState("");
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const count = Number(release.review_count || 0);
+  const average = Number(release.rating_average || 0);
+  const currentReviews = reviews.filter((item) =>
+    item.platform_key === release.platform_key && item.release_key === release.current_release_key
+  );
+  const visibleReviews = showAll ? currentReviews : currentReviews.slice(0, 2);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!release.available || sending) return;
+    setSending(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platformKey: release.platform_key,
+          displayName, rating: stars, reason
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Không thể lưu đánh giá.");
+      setNotice(result.updated ? "Đã cập nhật đánh giá của bạn." : "Đã ghi nhận đánh giá của bạn.");
+      setReason("");
+      await onSaved();
+    } catch (error) {
+      setNotice(error.message || "Không thể gửi đánh giá.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="vn-platform-reviews" aria-label={"Đánh giá " + release.platform_key}>
+      <div className="vn-rating-header">
+        <span className="vn-rating-value"><span aria-hidden="true">★</span> {count ? average.toFixed(1) : "—"}<small>/5</small></span>
+        <div className="vn-rating-side">
+          <span className="vn-rating-stars" aria-label={count ? "Trung bình " + average.toFixed(1) + " trên 5 sao" : "Chưa có đánh giá"}>★★★★★</span>
+          <small>{count.toLocaleString("vi-VN")} đánh giá · Bản {release.version_name || "hiện tại"}</small>
+        </div>
+      </div>
+      <button type="button" className="vn-review-toggle" disabled={!release.available} onClick={() => { setExpanded(!expanded); setNotice(""); }}>
+        {expanded ? "Đóng biểu mẫu" : "☆ Đánh giá nền tảng này"}
+      </button>
+      {expanded && (
+        <form onSubmit={submit} className="vn-review-form">
+          <label htmlFor={"review-name-" + release.platform_key}>Tên hiển thị (không bắt buộc)</label>
+          <input id={"review-name-" + release.platform_key} className="vn-field" maxLength={32} placeholder="Tên người chơi" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <label>Chấm điểm từ 1 đến 5 sao</label>
+          <div className="vn-stars" role="group" aria-label="Chọn số sao">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button key={value} type="button" aria-pressed={stars === value} aria-label={value + " sao"} className={"vn-star " + (value <= stars ? "chosen" : "")} onClick={() => setStars(value)}>★</button>
+            ))}
+            <span className="vn-stars-label">{stars}/5</span>
+          </div>
+          <label htmlFor={"review-reason-" + release.platform_key}>Lý do đánh giá</label>
+          <textarea id={"review-reason-" + release.platform_key} className="vn-field" required minLength={8} maxLength={600} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Bạn thích điểm gì hoặc gặp vấn đề gì ở phiên bản này?" />
+          <button type="submit" className="vn-send" disabled={sending || reason.trim().length < 8}>{sending ? "Đang gửi…" : "Gửi đánh giá"}</button>
+          <p className="vn-review-hint">Mỗi thiết bị được tính một đánh giá trong mỗi phiên bản và có thể chỉnh sửa đánh giá đó.</p>
+        </form>
+      )}
+      {notice && <p className="vn-review-notice" role="status">{notice}</p>}
+      <div className="vn-review-list">
+        {visibleReviews.length > 0 ? (
+          <>
+            <h4>Lý do người chơi đánh giá</h4>
+            {visibleReviews.map((item, index) => (
+              <article className="vn-review-entry" key={item.platform_key + item.release_key + item.updated_at + index}>
+                <div><b>{item.display_name || "Người chơi"}</b><span className="vn-review-entry-stars">{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</span></div>
+                <p>{item.reason}</p>
+              </article>
+            ))}
+            {currentReviews.length > 2 && <button className="vn-review-more" type="button" onClick={() => setShowAll(!showAll)}>{showAll ? "Thu gọn" : "Xem thêm lý do đánh giá"}</button>}
+          </>
+        ) : <p className="vn-review-empty">Chưa có đánh giá cho phiên bản này.</p>}
+      </div>
+    </section>
+  );
+}
+
+function ReleaseCard({ release, appIconUrl, reviews, onSaved }) {
   const info = platformInfo[release.platform_key];
   if (!info) return null;
   return (
@@ -56,6 +145,7 @@ function ReleaseCard({ release, appIconUrl }) {
       {release.requirements ? <p className="vn-small">Yêu cầu: {release.requirements}</p> : null}
       {release.release_notes ? <details className="vn-notes"><summary>Ghi chú phiên bản</summary><p>{release.release_notes}</p></details> : null}
       {release.available ? <a className="vn-download" href={"/api/download/" + release.platform_key} onClick={prepareDownloadIdentity}>Tải xuống</a> : <button className="vn-download disabled" disabled>Đang chuẩn bị</button>}
+      <PlatformReviews release={release} reviews={reviews} onSaved={onSaved} />
     </article>
   );
 }
@@ -66,8 +156,6 @@ function Stat({ symbol, value, label }) {
 export default function HomePage() {
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(true);
-  const [reviewName, setReviewName] = useState("");
-  const [rating, setRating] = useState(5);
   const [commentName, setCommentName] = useState("");
   const [comment, setComment] = useState("");
   const [message, setMessage] = useState("");
@@ -83,26 +171,6 @@ export default function HomePage() {
       setMessage(error.message || "Không thể kết nối đến máy chủ.");
     } finally {
       setLoading(false);
-    }
-  }
-  async function submitReview(event) {
-    event.preventDefault();
-    setSending(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: reviewName, rating }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Không thể lưu đánh giá.");
-      setMessage("Đã ghi nhận đánh giá của bạn. Cảm ơn bạn!");
-      await refresh();
-    } catch (error) {
-      setMessage(error.message || "Không thể gửi đánh giá.");
-    } finally {
-      setSending(false);
     }
   }
   async function submitComment(event) {
@@ -145,8 +213,8 @@ export default function HomePage() {
         </section>
         <section className="vn-stats">
           <Stat symbol="⇩" value={Number(stats.downloads || 0).toLocaleString("vi-VN")} label="Tổng lượt tải" />
-          <Stat symbol="★" value={Number(stats.rating_average || 0).toFixed(1)} label="Điểm đánh giá trung bình" />
-          <Stat symbol="✦" value={Number(stats.review_count || 0).toLocaleString("vi-VN")} label="Lượt đánh giá" />
+          <Stat symbol="★" value={Number(stats.rating_average || 0).toFixed(1)} label="Điểm bản hiện tại" />
+          <Stat symbol="✦" value={Number(stats.review_count || 0).toLocaleString("vi-VN")} label="Tổng lượt đánh giá" />
           <Stat symbol="☷" value={Number(stats.comment_count || 0).toLocaleString("vi-VN")} label="Bình luận" />
         </section>
         {groups.map((group) => (
@@ -155,7 +223,7 @@ export default function HomePage() {
             <div className="vn-grid">
               {group.keys.map((key) => {
                 const release = (data.releases || []).find((item) => item.platform_key === key);
-                return release ? <ReleaseCard release={release} appIconUrl={data.appearance?.app_icon_url} key={key} /> : null;
+                return release ? <ReleaseCard release={release} appIconUrl={data.appearance?.app_icon_url} reviews={data.reviews || []} onSaved={refresh} key={key} /> : null;
               })}
             </div>
           </section>
@@ -164,13 +232,11 @@ export default function HomePage() {
           <div className="vn-head"><span>KẾT NỐI NGƯỜI CHƠI</span><h2>Cộng đồng GXB3</h2><p>Đánh giá trải nghiệm và chia sẻ cảm nhận của bạn.</p></div>
           <div className="vn-community">
             <div className="vn-panel">
-              <h3>Đánh giá trò chơi</h3><p>Mỗi trình duyệt có thể cập nhật một đánh giá của mình.</p>
-              <form onSubmit={submitReview}>
-                <input value={reviewName} onChange={(event) => setReviewName(event.target.value)} maxLength={32} placeholder="Tên hiển thị (không bắt buộc)" className="vn-field" />
-                <div className="vn-stars">{[1,2,3,4,5].map((value) => <button type="button" onClick={() => setRating(value)} aria-label={value + " sao"} style={{ opacity: value <= rating ? 1 : 0.35 }} className="vn-star" key={value}>★</button>)}</div>
-                <button disabled={sending} className="vn-send">Gửi đánh giá</button>
-              </form>
-              <p>Điểm hiện tại: <b>{Number(stats.rating_average || 0).toFixed(1)}/5</b> · {Number(stats.review_count || 0)} lượt đánh giá</p>
+              <h3>Đánh giá theo nền tảng</h3>
+              <p>Chọn mục Android APK, Windows EXE, iOS hoặc MobileConfig ở trên để chấm sao và chia sẻ lý do cụ thể cho phiên bản đang phát hành.</p>
+              <p>Mỗi nền tảng có điểm và lượt đánh giá độc lập. Khi ra phiên bản mới, bộ đánh giá của phiên bản đó bắt đầu lại từ 0; lịch sử các phiên bản cũ vẫn được giữ lại.</p>
+              <p>Điểm trung bình các bản đang phát hành: <b>{Number(stats.rating_average || 0).toFixed(1)}/5</b></p>
+              <p>Tổng lượt đánh giá mọi phiên bản: <b>{Number(stats.review_count || 0).toLocaleString("vi-VN")}</b></p>
             </div>
             <div className="vn-panel">
               <h3>Gửi bình luận</h3><p>Chia sẻ ý kiến của bạn với cộng đồng người chơi.</p>
