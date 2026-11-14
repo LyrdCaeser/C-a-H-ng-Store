@@ -83,7 +83,7 @@ function PlatformReviews({ release, reviews = [], onSaved }) {
       <div className="vn-rating-header">
         <span className="vn-rating-value"><span aria-hidden="true">★</span> {count ? average.toFixed(1) : "—"}<small>/5</small></span>
         <div className="vn-rating-side">
-          <span className="vn-rating-stars" aria-label={count ? "Trung bình " + average.toFixed(1) + " trên 5 sao" : "Chưa có đánh giá"}>★★★★★</span>
+          <span className="vn-rating-stars" aria-label={count ? "Trung bình " + average.toFixed(1) + " trên 5 sao" : "Chưa có đánh giá"}>{"★".repeat(count ? Math.round(average) : 0)}{"☆".repeat(5 - (count ? Math.round(average) : 0))}</span>
           <small>{count.toLocaleString("vi-VN")} đánh giá · Bản {release.version_name || "hiện tại"}</small>
         </div>
       </div>
