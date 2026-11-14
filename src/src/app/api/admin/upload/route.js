@@ -10,6 +10,7 @@ const extensions = {
   exe: [".exe"],
   ios: [".ipa", ".zip"],
   mobileconfig: [".mobileconfig"],
+  artwork: [".jpg", ".jpeg", ".png", ".webp"],
 };
 const contentTypes = [
   "application/octet-stream",
@@ -21,6 +22,9 @@ const contentTypes = [
   "application/zip",
   "text/xml",
   "application/xml",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
 ];
 
 function validAdminToken(provided) {
@@ -54,7 +58,7 @@ export async function POST(request) {
         }
 
         return {
-          allowedContentTypes: contentTypes,
+          allowedContentTypes: platformKey === "artwork" ? ["image/jpeg", "image/png", "image/webp"] : contentTypes,
           maximumSizeInBytes: 5 * 1024 * 1024 * 1024,
           addRandomSuffix: false,
           tokenPayload: JSON.stringify({ platformKey }),
